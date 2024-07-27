@@ -20,6 +20,54 @@ async def test_create_user_with_valid_data(db_session, email_service):
     assert user is not None
     assert user.email == user_data["email"]
 
+async def test_register_verify_admin(db_session, email_service):
+    user_data = {
+        "nickname": generate_nickname(),
+        "email": "valid_user@example.com",
+        "password": "ValidPassword123!"
+    }
+    user = await UserService.register_user(db_session, user_data, email_service)
+    assert user is not None
+    assert user.verification_token is not None
+    assert user.email == user_data["email"]
+    assert user.role == UserRole.ADMIN
+    assert user.email_verified == False
+
+    await UserService.verify_email_with_token(db_session, user.id, user.verification_token)
+    user = await UserService.get_by_id(db_session, user.id)
+    assert user is not None
+    assert user.verification_token is None
+    assert user.email == user_data["email"]
+    assert user.role == UserRole.ADMIN
+    assert user.email_verified == True
+
+async def test_register_verify_non_admin(db_session, email_service):
+    admin_data = {
+        "nickname": generate_nickname(),
+        "email": "admin_user@example.com",
+        "password": "ValidPassword123!"
+    }
+    user_data = {
+        "nickname": generate_nickname(),
+        "email": "valid_user@example.com",
+        "password": "ValidPassword123!"
+    }
+    await UserService.register_user(db_session, admin_data, email_service)
+    user = await UserService.register_user(db_session, user_data, email_service)
+    assert user is not None
+    assert user.verification_token is not None
+    assert user.email == user_data["email"]
+    assert user.role == UserRole.ANONYMOUS
+    assert user.email_verified == False
+
+    await UserService.verify_email_with_token(db_session, user.id, user.verification_token)
+    user = await UserService.get_by_id(db_session, user.id)
+    assert user is not None
+    assert user.verification_token is None
+    assert user.email == user_data["email"]
+    assert user.role == UserRole.AUTHENTICATED
+    assert user.email_verified == True
+
 # Test creating a user with invalid data
 async def test_create_user_with_invalid_data(db_session, email_service):
     user_data = {
