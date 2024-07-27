@@ -86,8 +86,10 @@ async def update_user(user_id: UUID, user_update: UserUpdate, request: Request, 
     - **user_id**: UUID of the user to update.
     - **user_update**: UserUpdate model with updated user information.
     """
-    user_data = user_update.model_dump(exclude_unset=True)
     current_user_data = await UserService.get_by_id(db, user_id)
+    if not current_user_data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    user_data = user_update.model_dump(exclude_unset=True)
     if 'email' in user_data:
         existing_user = await UserService.get_by_email(db, user_data["email"])
         if existing_user and existing_user.email != current_user_data.email:
