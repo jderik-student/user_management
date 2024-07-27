@@ -1,4 +1,5 @@
 from builtins import str
+import uuid
 import pytest
 from httpx import AsyncClient
 from app.main import app
@@ -51,6 +52,12 @@ async def test_update_user_email_access_allowed(async_client, admin_user, admin_
     assert response.status_code == 200
     assert response.json()["email"] == updated_data["email"]
 
+@pytest.mark.asyncio
+async def test_update_invalid_uuid(async_client, admin_user, admin_token):
+    updated_data = {"email": f"updated_{admin_user.id}@example.com"}
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    response = await async_client.put(f"/users/{uuid.uuid4()}", json=updated_data, headers=headers)
+    assert response.status_code == 404
 
 @pytest.mark.asyncio
 async def test_delete_user(async_client, admin_user, admin_token):
