@@ -21,6 +21,7 @@ Key Highlights:
 from builtins import dict, int, len, str
 from datetime import timedelta
 from uuid import UUID
+from app.models.user_model import UpdatableUserRole, UserRole
 from fastapi import APIRouter, Depends, HTTPException, Response, status, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -101,6 +102,38 @@ async def update_user(user_id: UUID, user_update: UserUpdate, request: Request, 
     updated_user = await UserService.update(db, user_id, user_data)
     if not updated_user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    return UserResponse.model_construct(
+        id=updated_user.id,
+        bio=updated_user.bio,
+        first_name=updated_user.first_name,
+        last_name=updated_user.last_name,
+        nickname=updated_user.nickname,
+        email=updated_user.email,
+        role=updated_user.role,
+        last_login_at=updated_user.last_login_at,
+        profile_picture_url=updated_user.profile_picture_url,
+        github_profile_url=updated_user.github_profile_url,
+        linkedin_profile_url=updated_user.linkedin_profile_url,
+        created_at=updated_user.created_at,
+        updated_at=updated_user.updated_at,
+        links=create_user_links(updated_user.id, request)
+    )
+
+@router.put("/users/{user_id}/role", response_model=UserResponse, name="update_user_role", tags=["User Role Management Requires (Admin Role)"])
+async def update_user_role(user_id: UUID, role: UpdatableUserRole, request: Request, db: AsyncSession = Depends(get_db), token: str = Depends(oauth2_scheme), current_user: dict = Depends(require_role(["ADMIN"]))):
+    """
+    Update a user's role
+
+    - **user_id**: UUID of the user to update.
+    - **role**: New role to update the user with
+    """
+    current_user_data = await UserService.get_by_id(db, user_id)
+    if not current_user_data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    if current_user_data.role == UserRole.ANONYMOUS:
+        raise HTTPException(status_code=status.HTTP_405_METHOD_NOT_ALLOWED, detail="Cannot update the role of an ANONYMOUS user")
+    updated_user = await UserService.update_user_role(db, user_id, role)
 
     return UserResponse.model_construct(
         id=updated_user.id,

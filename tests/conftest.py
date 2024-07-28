@@ -151,7 +151,7 @@ async def unverified_user(db_session):
         "last_name": fake.last_name(),
         "email": fake.email(),
         "hashed_password": hash_password("MySuperPassword$1234"),
-        "role": UserRole.AUTHENTICATED,
+        "role": UserRole.ANONYMOUS,
         "email_verified": False,
         "is_locked": False,
     }
@@ -187,9 +187,10 @@ async def admin_user(db_session: AsyncSession):
         email="admin@example.com",
         first_name="John",
         last_name="Doe",
-        hashed_password="securepassword",
+        hashed_password=hash_password("MySuperPassword$1234"),
         role=UserRole.ADMIN,
         is_locked=False,
+        email_verified=True
     )
     db_session.add(user)
     await db_session.commit()
@@ -202,9 +203,10 @@ async def manager_user(db_session: AsyncSession):
         first_name="John",
         last_name="Doe",
         email="manager_user@example.com",
-        hashed_password="securepassword",
+        hashed_password=hash_password("MySuperPassword$1234"),
         role=UserRole.MANAGER,
         is_locked=False,
+        email_verified=True
     )
     db_session.add(user)
     await db_session.commit()

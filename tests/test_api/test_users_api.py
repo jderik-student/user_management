@@ -3,7 +3,7 @@ import uuid
 import pytest
 from httpx import AsyncClient
 from app.main import app
-from app.models.user_model import User, UserRole
+from app.models.user_model import UpdatableUserRole, User, UserRole
 from app.utils.nickname_gen import generate_nickname
 from app.utils.security import hash_password
 from app.services.jwt_service import decode_token  # Import your FastAPI app
@@ -69,7 +69,7 @@ async def test_delete_user(async_client, admin_user, admin_token):
     assert fetch_response.status_code == 404
 
 @pytest.mark.asyncio
-async def test_create_user_duplicate_email(async_client, verified_user):
+async def test_register_user_duplicate_email(async_client, verified_user):
     user_data = {
         "email": verified_user.email,
         "password": "AnotherPassword123!",
@@ -267,11 +267,260 @@ async def test_update_user_duplicate_email(async_client, admin_user, admin_token
     assert "Email already exists" in response.json().get("detail", "")
 
 @pytest.mark.asyncio
-async def test_register_user_duplicate_email(async_client, verified_user):
-    user_data = {
-        "email": verified_user.email,
-        "password": "AnotherPassword123!",
+async def test_update_authenticated_user_to_admin_role(async_client, admin_token, verified_user):
+    role = UpdatableUserRole.ADMIN.value
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    response = await async_client.put(f"/users/{verified_user.id}/role?role={role}", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["role"] == role
+    response = await async_client.get(f"/users/{verified_user.id}", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["role"] == role
+
+    form_data = {
+        "username": verified_user.email,
+        "password": "MySuperPassword$1234"
     }
-    response = await async_client.post("/register/", json=user_data)
-    assert response.status_code == 400
-    assert "Email already exists" in response.json().get("detail", "")
+    response = await async_client.post("/login/", data=urlencode(form_data), headers={"Content-Type": "application/x-www-form-urlencoded"})
+
+    # Check for successful login response
+    assert response.status_code == 200
+    data = response.json()
+    assert "access_token" in data
+    assert data["token_type"] == "bearer"
+
+    # Use the decode_token method from jwt_service to decode the JWT
+    decoded_token = decode_token(data["access_token"])
+    assert decoded_token is not None, "Failed to decode token"
+    assert decoded_token["role"] == "ADMIN", "The user role should be ADMIN"
+
+@pytest.mark.asyncio
+async def test_update_authenticated_user_to_manager_role(async_client, admin_token, verified_user):
+    role = UpdatableUserRole.MANAGER.value
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    response = await async_client.put(f"/users/{verified_user.id}/role?role={role}", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["role"] == role
+    response = await async_client.get(f"/users/{verified_user.id}", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["role"] == role
+
+    form_data = {
+        "username": verified_user.email,
+        "password": "MySuperPassword$1234"
+    }
+    response = await async_client.post("/login/", data=urlencode(form_data), headers={"Content-Type": "application/x-www-form-urlencoded"})
+
+    # Check for successful login response
+    assert response.status_code == 200
+    data = response.json()
+    assert "access_token" in data
+    assert data["token_type"] == "bearer"
+
+    # Use the decode_token method from jwt_service to decode the JWT
+    decoded_token = decode_token(data["access_token"])
+    assert decoded_token is not None, "Failed to decode token"
+    assert decoded_token["role"] == "MANAGER", "The user role should be MANAGER"
+
+@pytest.mark.asyncio
+async def test_update_authenticated_user_to_admin_role_then_to_manager_role(async_client, admin_token, verified_user):
+    role = UpdatableUserRole.ADMIN.value
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    response = await async_client.put(f"/users/{verified_user.id}/role?role={role}", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["role"] == role
+    response = await async_client.get(f"/users/{verified_user.id}", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["role"] == role
+
+    form_data = {
+        "username": verified_user.email,
+        "password": "MySuperPassword$1234"
+    }
+    response = await async_client.post("/login/", data=urlencode(form_data), headers={"Content-Type": "application/x-www-form-urlencoded"})
+
+    # Check for successful login response
+    assert response.status_code == 200
+    data = response.json()
+    assert "access_token" in data
+    assert data["token_type"] == "bearer"
+
+    # Use the decode_token method from jwt_service to decode the JWT
+    decoded_token = decode_token(data["access_token"])
+    assert decoded_token is not None, "Failed to decode token"
+    assert decoded_token["role"] == "ADMIN", "The user role should be ADMIN"
+
+    role = UpdatableUserRole.MANAGER.value
+    response = await async_client.put(f"/users/{verified_user.id}/role?role={role}", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["role"] == role
+    response = await async_client.get(f"/users/{verified_user.id}", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["role"] == role
+
+    response = await async_client.post("/login/", data=urlencode(form_data), headers={"Content-Type": "application/x-www-form-urlencoded"})
+
+    # Check for successful login response
+    assert response.status_code == 200
+    data = response.json()
+    assert "access_token" in data
+    assert data["token_type"] == "bearer"
+
+    # Use the decode_token method from jwt_service to decode the JWT
+    decoded_token = decode_token(data["access_token"])
+    assert decoded_token is not None, "Failed to decode token"
+    assert decoded_token["role"] == "MANAGER", "The user role should be MANAGER"
+
+@pytest.mark.asyncio
+async def test_update_admin_user_to_manager_role(async_client, admin_token, admin_user):
+    role = UpdatableUserRole.MANAGER.value
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    response = await async_client.put(f"/users/{admin_user.id}/role?role={role}", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["role"] == role
+    response = await async_client.get(f"/users/{admin_user.id}", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["role"] == role
+
+    form_data = {
+        "username": admin_user.email,
+        "password": "MySuperPassword$1234"
+    }
+    response = await async_client.post("/login/", data=urlencode(form_data), headers={"Content-Type": "application/x-www-form-urlencoded"})
+
+    # Check for successful login response
+    assert response.status_code == 200
+    data = response.json()
+    assert "access_token" in data
+    assert data["token_type"] == "bearer"
+
+    # Use the decode_token method from jwt_service to decode the JWT
+    decoded_token = decode_token(data["access_token"])
+    assert decoded_token is not None, "Failed to decode token"
+    assert decoded_token["role"] == "MANAGER", "The user role should be MANAGER"
+
+@pytest.mark.asyncio
+async def test_update_admin_user_to_authenticated_role(async_client, admin_token, admin_user):
+    role = UpdatableUserRole.AUTHENTICATED.value
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    response = await async_client.put(f"/users/{admin_user.id}/role?role={role}", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["role"] == role
+    response = await async_client.get(f"/users/{admin_user.id}", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["role"] == role
+
+    form_data = {
+        "username": admin_user.email,
+        "password": "MySuperPassword$1234"
+    }
+    response = await async_client.post("/login/", data=urlencode(form_data), headers={"Content-Type": "application/x-www-form-urlencoded"})
+
+    # Check for successful login response
+    assert response.status_code == 200
+    data = response.json()
+    assert "access_token" in data
+    assert data["token_type"] == "bearer"
+
+    # Use the decode_token method from jwt_service to decode the JWT
+    decoded_token = decode_token(data["access_token"])
+    assert decoded_token is not None, "Failed to decode token"
+    assert decoded_token["role"] == "AUTHENTICATED", "The user role should be AUTHENTICATED"
+
+@pytest.mark.asyncio
+async def test_update_manager_user_to_admin_role(async_client, admin_token, manager_user):
+    role = UpdatableUserRole.ADMIN.value
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    response = await async_client.put(f"/users/{manager_user.id}/role?role={role}", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["role"] == role
+    response = await async_client.get(f"/users/{manager_user.id}", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["role"] == role
+
+    form_data = {
+        "username": manager_user.email,
+        "password": "MySuperPassword$1234"
+    }
+    response = await async_client.post("/login/", data=urlencode(form_data), headers={"Content-Type": "application/x-www-form-urlencoded"})
+
+    # Check for successful login response
+    assert response.status_code == 200
+    data = response.json()
+    assert "access_token" in data
+    assert data["token_type"] == "bearer"
+
+    # Use the decode_token method from jwt_service to decode the JWT
+    decoded_token = decode_token(data["access_token"])
+    assert decoded_token is not None, "Failed to decode token"
+    assert decoded_token["role"] == "ADMIN", "The user role should be ADMIN"
+
+@pytest.mark.asyncio
+async def test_update_manager_user_to_authenticated_role(async_client, admin_token, manager_user):
+    role = UpdatableUserRole.AUTHENTICATED.value
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    response = await async_client.put(f"/users/{manager_user.id}/role?role={role}", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["role"] == role
+    response = await async_client.get(f"/users/{manager_user.id}", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["role"] == role
+
+    form_data = {
+        "username": manager_user.email,
+        "password": "MySuperPassword$1234"
+    }
+    response = await async_client.post("/login/", data=urlencode(form_data), headers={"Content-Type": "application/x-www-form-urlencoded"})
+
+    # Check for successful login response
+    assert response.status_code == 200
+    data = response.json()
+    assert "access_token" in data
+    assert data["token_type"] == "bearer"
+
+    # Use the decode_token method from jwt_service to decode the JWT
+    decoded_token = decode_token(data["access_token"])
+    assert decoded_token is not None, "Failed to decode token"
+    assert decoded_token["role"] == "AUTHENTICATED", "The user role should be AUTHENTICATED"
+
+@pytest.mark.asyncio
+async def test_update_anonymous_user_role_to_admin(async_client, admin_token, unverified_user):
+    role =  UpdatableUserRole.ADMIN.value
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    response = await async_client.put(f"/users/{unverified_user.id}/role?role={role}", headers=headers)
+    assert response.status_code == 405
+    assert "Cannot update the role of an ANONYMOUS user" in response.json().get("detail", "")
+
+@pytest.mark.asyncio
+async def test_update_anonymous_user_role_to_manager(async_client, admin_token, unverified_user):
+    role =  UpdatableUserRole.MANAGER.value
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    response = await async_client.put(f"/users/{unverified_user.id}/role?role={role}", headers=headers)
+    assert response.status_code == 405
+    assert "Cannot update the role of an ANONYMOUS user" in response.json().get("detail", "")
+
+@pytest.mark.asyncio
+async def test_update_anonymous_user_role_to_authenticated(async_client, admin_token, unverified_user):
+    role =  UpdatableUserRole.AUTHENTICATED.value
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    response = await async_client.put(f"/users/{unverified_user.id}/role?role={role}", headers=headers)
+    assert response.status_code == 405
+    assert "Cannot update the role of an ANONYMOUS user" in response.json().get("detail", "")
+
+@pytest.mark.asyncio
+async def test_update_user_role_access_denied(async_client, user_token, manager_token, verified_user):
+    role = UpdatableUserRole.ADMIN.value
+    headers = {"Authorization": f"Bearer {manager_token}"}
+    response = await async_client.put(f"/users/{verified_user.id}/role?role={role}", headers=headers)
+    assert response.status_code == 403
+    headers = {"Authorization": f"Bearer {user_token}"}
+    response = await async_client.put(f"/users/{verified_user.id}/role?role={role}", headers=headers)
+    assert response.status_code == 403
+
+@pytest.mark.asyncio
+async def test_update_user_role_invalid_uuid(async_client, admin_token):
+    role = UpdatableUserRole.ADMIN.value
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    response = await async_client.put(f"/users/{uuid.uuid4()}/role?role={role}", headers=headers)
+    assert response.status_code == 404
+    assert "User not found" in response.json().get("detail", "")
