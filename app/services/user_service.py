@@ -7,7 +7,7 @@ from sqlalchemy import func, null, update, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import get_email_service, get_settings
-from app.models.user_model import User
+from app.models.user_model import UpdatableUserRole, User
 from app.schemas.user_schemas import UserCreate, UserUpdate
 from app.utils.nickname_gen import generate_nickname
 from app.utils.security import generate_verification_token, hash_password, verify_password
@@ -90,6 +90,23 @@ class UserService:
             if updated_user:
                 session.refresh(updated_user)  # Explicitly refresh the updated user object
                 logger.info(f"User {user_id} updated successfully.")
+                return updated_user
+            else:
+                logger.error(f"User {user_id} not found after update attempt.")
+            return None
+        except Exception as e:  # Broad exception handling for debugging
+            logger.error(f"Error during user update: {e}")
+            return None
+
+    @classmethod
+    async def update_user_role(cls, session: AsyncSession, user_id: UUID, user_role: UpdatableUserRole) -> Optional[User]:
+        try:
+            query = update(User).where(User.id == user_id).values({"role":  UserRole[user_role.name]}).execution_options(synchronize_session="fetch")
+            await cls._execute_query(session, query)
+            updated_user = await cls.get_by_id(session, user_id)
+            if updated_user:
+                session.refresh(updated_user)  # Explicitly refresh the updated user object
+                logger.info(f"Successfully updated User {user_id} to have the role: {user_role.value}.")
                 return updated_user
             else:
                 logger.error(f"User {user_id} not found after update attempt.")
