@@ -16,6 +16,12 @@ class UserRole(Enum):
     MANAGER = "MANAGER"
     ADMIN = "ADMIN"
 
+class UpdatableUserRole(Enum):
+    """Enumeration of user roles within the application that can be used for the update_user_role api endpoint, stored as ENUM in the database."""
+    AUTHENTICATED = "AUTHENTICATED"
+    MANAGER = "MANAGER"
+    ADMIN = "ADMIN"
+
 class User(Base):
     """
     Represents a user within the application, corresponding to the 'users' table in the database.
