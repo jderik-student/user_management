@@ -71,8 +71,8 @@ class ErrorResponse(BaseModel):
 class UserListResponse(BaseModel):
     items: List[UserResponse] = Field(..., example=[{
         "id": "~A Randomized Valid UUID~", "nickname": "john_doe_123", "email": "john.doe@example.com",
-        "first_name": "John", "bio": "Experienced developer", "role": "AUTHENTICATED",
-        "last_name": "Doe", "bio": "Experienced developer", "role": "AUTHENTICATED",
+        "first_name": "John", "last_name": "Doe",
+         "bio": "Experienced developer", "role": "AUTHENTICATED",
         "profile_picture_url": "https://example.com/profiles/john.jpg", 
         "linkedin_profile_url": "https://linkedin.com/in/johndoe", 
         "github_profile_url": "https://github.com/johndoe"
