@@ -1,8 +1,9 @@
 from builtins import range
+import uuid
 import pytest
 from sqlalchemy import select
 from app.dependencies import get_settings
-from app.models.user_model import User, UserRole
+from app.models.user_model import UpdatableUserRole, User, UserRole
 from app.services.user_service import UserService
 from app.utils.nickname_gen import generate_nickname
 
@@ -119,6 +120,19 @@ async def test_update_user_valid_data(db_session, user):
 # Test updating a user with invalid data
 async def test_update_user_invalid_data(db_session, user):
     updated_user = await UserService.update(db_session, user.id, {"email": "invalidemail"})
+    assert updated_user is None
+
+async def test_update_user_role_valid_data(db_session, user):
+    updated_user = await UserService.update_user_role(db_session, user.id, UpdatableUserRole.ADMIN)
+    assert updated_user is not None
+    assert updated_user.role == UserRole.ADMIN
+
+async def test_update_user_role_invalid_data(db_session):
+    updated_user = await UserService.update_user_role(db_session, uuid.uuid4(), "role")
+    assert updated_user is None
+
+async def test_update_user_role_invalid_user(db_session):
+    updated_user = await UserService.update_user_role(db_session, uuid.uuid4(), UpdatableUserRole.ADMIN)
     assert updated_user is None
 
 # Test deleting a user who exists
